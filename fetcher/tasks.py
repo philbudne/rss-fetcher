@@ -22,13 +22,14 @@ import http.client
 # PyPI
 import feedparser
 import mcmetadata.urls
-from psycopg2.errors import UniqueViolation
+from psycopg.errors import UniqueViolation
 import requests
 import requests.exceptions
 # NOTE! All references to rq belong in queue.py!
-from sqlalchemy import literal
-from sqlalchemy.exc import (    # type: ignore[attr-defined]
-    IntegrityError, PendingRollbackError)
+from setproctitle import setproctitle
+from sqlalchemy import literal, select, update
+from sqlalchemy.engine.result import ScalarResult
+from sqlalchemy.exc import (IntegrityError, PendingRollbackError)
 from sqlalchemy.sql.expression import case
 import sqlalchemy.sql.functions as func  # avoid overriding "sum"
 from urllib3.exceptions import InsecureRequestWarning
@@ -253,8 +254,8 @@ def fetches_per_minute(session: SessionType) -> float:
     NOTE!! This needs to be kept in sync with the policy in
     update_feed() (below)
     """
-    q = Feed._active_filter(
-        session.query(
+    res: ScalarResult = session.scalars(
+        select(
             func.sum(
                 1.0 /
                 func.coalesce(
@@ -270,9 +271,10 @@ def fetches_per_minute(session: SessionType) -> float:
                     )  # greatest
                 )  # func.coalesce
             )  # sum
-        )  # query
-    )  # active
-    return q.one()[0] or 0  # handle empty db!
+        )  # select
+        .where(*Feed._where_active())
+    )
+    return res.one() or 0       # allow for empty db
 
 
 def _auto_adjust_stat(counter: str) -> None:
@@ -489,8 +491,8 @@ def update_feed(session: SessionType,
         # better (and there could be less, but at the cost of added
         # complexity).
 
-        f = session.get(        # type: ignore[attr-defined]
-            Feed, feed_id, with_for_update=True)
+        stmt = select(Feed).where(Feed.id == feed_id).with_for_update()
+        f = session.scalars(stmt).one()
         if f is None:
             logger.info(f"  Feed {feed_id} not found in update_feed")
             return
@@ -805,7 +807,8 @@ def fetch_and_process_feed(
         # exclusive access, it's a bit of added paranoia
         # (search for "tri-state" below for an alternatve).
 
-        f = session.get(Feed, feed_id)  # type: ignore[attr-defined]
+        stmt = select(Feed).where(Feed.id == feed_id).with_for_update()
+        f = session.scalars(stmt).one()
         if f is None:
             logger.warning(f"feed_worker: feed {feed_id} not found")
             return NoUpdate('missing')

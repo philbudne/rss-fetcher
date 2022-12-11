@@ -23,7 +23,7 @@
 PYTHON=${PYTHON:-python3}
 
 # expected to be run in a venv w/ requirements.txt installed
-VENV=venv
+VENV=venv2
 if [ ! -d $VENV ]; then
     echo creating venv
     $PYTHON -mvenv $VENV || exit 1

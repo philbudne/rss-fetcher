@@ -9,18 +9,14 @@ from feedparser.util import FeedParserDict
 import mcmetadata.urls as urls
 import mcmetadata.titles as titles
 from sqlalchemy import Column, BigInteger, DateTime, String, Boolean, Integer, text, Float
-# SQLAlchemy moves this to sqlalchemy.orm, but available type hints only
-# has it old location:
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm.query import Query
+from sqlalchemy.orm import DeclarativeBase, mapped_column
+from sqlalchemy.sql.expression import ColumnElement
 
 from fetcher.database.engine import engine
 import fetcher.util as util
 
-Base = declarative_base()
 
-
-class MyBase(Base):
+class Base(DeclarativeBase):
     __abstract__ = True
 
     def as_dict(self) -> Dict[str, Any]:
@@ -45,67 +41,74 @@ def utc(seconds: float = 0.0) -> dt.datetime:
     return d
 
 
-class Feed(MyBase):
+class Feed(Base):
     __tablename__ = 'feeds'
 
-    id = Column(BigInteger, primary_key=True, autoincrement=True)
-    sources_id = Column(BigInteger)
-    name = Column(String)       # ONLY set from mcweb feeds.name field
-    url = Column(String)
-    active = Column(Boolean, nullable=False, server_default=text('true'))
-    last_fetch_attempt = Column(DateTime)
-    last_fetch_success = Column(DateTime)
-    last_fetch_hash = Column(String)
-    last_fetch_failures = Column(
-        Float,
-        nullable=False,
-        server_default=text('0'))
-    created_at = Column(DateTime)
-    http_etag = Column(String)  # "Entity Tag"
-    http_last_modified = Column(String)
-    next_fetch_attempt = Column(DateTime)
-    queued = Column(Boolean, nullable=False, server_default=text('false'))
-    system_enabled = Column(
+    id = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    sources_id = mapped_column(BigInteger)
+    name = mapped_column(String)
+    url = mapped_column(String)
+    active = mapped_column(
         Boolean,
         nullable=False,
         server_default=text('true'))
-    update_minutes = Column(Integer)  # sy:updatePeriod/sy:updateFrequency
-    http_304 = Column(Boolean)        # sends HTTP 304 "Not Modified"
-    system_status = Column(String)
-    last_new_stories = Column(DateTime)
-    rss_title = Column(String)  # ONLY set from RSS feed title
-    poll_minutes = Column(Integer)  # poll period override
+    last_fetch_attempt = mapped_column(DateTime)
+    last_fetch_success = mapped_column(DateTime)
+    last_fetch_hash = mapped_column(String)
+    last_fetch_failures = mapped_column(
+        Float,
+        nullable=False,
+        server_default=text('0'))
+    created_at = mapped_column(DateTime)
+    http_etag = mapped_column(String)  # "Entity Tag"
+    http_last_modified = mapped_column(String)
+    next_fetch_attempt = mapped_column(DateTime)
+    queued = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=text('false'))
+    system_enabled = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=text('true'))
+    # sy:updatePeriod/sy:updateFrequency
+    update_minutes = mapped_column(Integer)
+    http_304 = mapped_column(Boolean)        # sends HTTP 304 "Not Modified"
+    system_status = mapped_column(String)
+    last_new_stories = mapped_column(DateTime)
+    rss_title = mapped_column(String)  # ONLY set from RSS feed title
+    poll_minutes = mapped_column(Integer)  # poll period override
     # ^^^ _COULD_ be auto-adaptive (add bool adaptive(_poll)?)
 
     def __repr__(self) -> str:
         return f"<Feed id={self.id} name={self.name} sources_id={self.sources_id}>"
 
     @staticmethod
-    def _active_filter(q: Query) -> Query:
+    def _where_active() -> List[ColumnElement]:
         """
         Helper for defining queries:
-        filter a feeds query to return only active feeds.
+        return iterable of where conditions for active feeds.
         This is MEANT to be the only place to define this policy.
         """
-        return q.filter(Feed.active.is_(True),
-                        Feed.system_enabled.is_(True))
+        return [Feed.active.is_(True),
+                Feed.system_enabled.is_(True)]
 
 
-class Story(MyBase):
+class Story(Base):
     __tablename__ = 'stories'
 
-    id = Column(BigInteger, primary_key=True, autoincrement=True)
-    feed_id = Column(BigInteger)
-    sources_id = Column(BigInteger)
-    url = Column(String)
-    normalized_url = Column(String)
-    guid = Column(String)
-    published_at = Column(DateTime)
-    fetched_at = Column(DateTime)
-    domain = Column(String)
-    title = Column(String)
-    normalized_title = Column(String)
-    normalized_title_hash = Column(String)
+    id = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    feed_id = mapped_column(BigInteger)
+    sources_id = mapped_column(BigInteger)
+    url = mapped_column(String)
+    normalized_url = mapped_column(String)
+    guid = mapped_column(String)
+    published_at = mapped_column(DateTime)
+    fetched_at = mapped_column(DateTime)
+    domain = mapped_column(String)
+    title = mapped_column(String)
+    normalized_title = mapped_column(String)
+    normalized_title_hash = mapped_column(String)
 
     def __repr__(self) -> str:
         return f"<Story id={self.id}>"
@@ -179,14 +182,14 @@ def _run_query(query: str) -> List[Any]:
     return data
 
 
-class FetchEvent(MyBase):
+class FetchEvent(Base):
     __tablename__ = 'fetch_events'
 
-    id = Column(BigInteger, primary_key=True, autoincrement=True)
-    feed_id = Column(BigInteger)
-    event = Column(String)      # Event enum
-    note = Column(String)
-    created_at = Column(DateTime)
+    id = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    feed_id = mapped_column(BigInteger)
+    event = mapped_column(String)      # Event enum
+    note = mapped_column(String)
+    created_at = mapped_column(DateTime)
 
     class Event(Enum):
         QUEUED = 'queued'

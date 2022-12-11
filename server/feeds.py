@@ -2,7 +2,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from fetcher.database import Session
 from fetcher.database.models import Feed, FetchEvent, Story
@@ -38,12 +38,13 @@ def fetch_feed_soon(feed_id: int) -> int:
     # and call it here?  Need to lock row and make sure not queued first??
     # NOTE! isnot(True) may not work in DB's w/o bool type (eg MySQL)??
     with Session() as session:
-        count = session.query(Feed)\
-                       .filter(Feed.id == feed_id,
-                               Feed.queued.isnot(True))\
-                       .update({'next_fetch_attempt': None,  # ASAP
-                                'last_fetch_failures': 0,
-                                'system_enabled': True})
+        upd = update(Feed)\
+            .where(Feed.id == feed_id,
+                   Feed.queued.is_not(True))\
+            .values(next_fetch_attempt=None,  # ASAP
+                    last_fetch_failures=0,
+                    system_enabled=True)
+        count = session.scalars(upd).one()
         session.commit()
     return int(count)
 
