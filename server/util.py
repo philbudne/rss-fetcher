@@ -1,6 +1,7 @@
 import datetime as dt
 from enum import Enum
 from functools import wraps
+import inspect
 from itertools import chain
 import logging
 import time
@@ -87,12 +88,15 @@ def api_method(func: Any) -> Any:
     Plus it handles errors in one place, and supresses ones we don't care to log to Sentry.
     """
     @wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> ApiResults:
+    async def wrapper(*args: Any, **kwargs: Any) -> ApiResults:
         start_time = time.time()
         # could use __qualname__ if needed:
         name = f"{func.__module__}.{func.__name__}"
         try:
-            results = func(*args, **kwargs)
+            if inspect.iscoroutinefunction(func):
+                results = await func(*args, **kwargs)
+            else:
+                results = func(*args, **kwargs)
             status = Status.OK
             return {            # update ApiResultOK if adding items!
                 'version': VERSION,

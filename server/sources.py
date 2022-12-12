@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import cast, func, select, text, Column, Date
 import sqlalchemy.sql.functions as f
 
-from fetcher.database import Session
+from fetcher.database.asyncio import AsyncSession
 from fetcher.database.models import Feed, Story
 
 import server.auth as auth
@@ -23,13 +23,13 @@ router = APIRouter(
 
 @router.get("/{sources_id}/feeds", dependencies=[Depends(auth.read_access)])
 @api_method
-def sources_feeds(sources_id: int) -> List[Dict]:
-    with Session() as session:
-        feeds = session.query(Feed)\
-                       .filter(Feed.sources_id == sources_id)\
-                       .all()
-        return [feed.as_dict_public() for feed in feeds]
-
+async def sources_feeds(sources_id: int) -> List[Dict]:
+    async with AsyncSession() as session:
+        feeds = await session.execute(
+            select(Feed)
+            .where(Feed.sources_id == sources_id))
+        # was .as_dict_public, but fails w/ async?
+        return [feed._asdict() for feed in feeds]
 
 @router.post("/{sources_id}/fetch-soon",
              dependencies=[Depends(auth.write_access)])
