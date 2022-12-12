@@ -45,7 +45,7 @@ async def stories_by_source() -> Dict[str, Any]:
     async with AsyncSession() as session:
         counts = await session.execute(
             select(Story.sources_id.label('sources_id'),
-                   func.count(Story.id).label('count'))\
+                   func.count(Story.id).label('count'))
             .group_by(Story.sources_id)
         )
         dates = await session.execute(

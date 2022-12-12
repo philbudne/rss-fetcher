@@ -86,8 +86,8 @@ class Feed(Base):
         return f"<Feed id={self.id} name={self.name} sources_id={self.sources_id}>"
 
     @staticmethod
-    def select_where_active(*entities: _ColumnsClauseArgument[Any]) -> Select[Any]:
-
+    def select_where_active(
+            *entities: _ColumnsClauseArgument[Any]) -> Select[Any]:
         """
         Helper for defining queries.
         Should be the ONE place where the "active" test is coded.
