@@ -8,9 +8,11 @@ from typing import Any, Dict, List, Optional
 from feedparser.util import FeedParserDict
 import mcmetadata.urls as urls
 import mcmetadata.titles as titles
-from sqlalchemy import Column, BigInteger, DateTime, String, Boolean, Integer, text, Float
+from sqlalchemy import (
+    Column, BigInteger, DateTime, String, Boolean, Integer, text, Float, select)
 from sqlalchemy.orm import DeclarativeBase, mapped_column
-from sqlalchemy.sql.expression import ColumnElement
+from sqlalchemy.sql._typing import _ColumnsClauseArgument
+from sqlalchemy.sql.selectable import Select
 
 from fetcher.database.engine import engine
 import fetcher.util as util
@@ -84,14 +86,14 @@ class Feed(Base):
         return f"<Feed id={self.id} name={self.name} sources_id={self.sources_id}>"
 
     @staticmethod
-    def _where_active() -> List[ColumnElement]:
+    def select_where_active(*entities: _ColumnsClauseArgument[Any]) -> Select[Any]:
+
         """
-        Helper for defining queries:
-        return iterable of where conditions for active feeds.
-        This is MEANT to be the only place to define this policy.
+        Helper for defining queries.
+        Should be the ONE place where the "active" test is coded.
         """
-        return [Feed.active.is_(True),
-                Feed.system_enabled.is_(True)]
+        return select(*entities).where(Feed.active.is_(True),
+                                       Feed.system_enabled.is_(True))
 
 
 class Story(Base):

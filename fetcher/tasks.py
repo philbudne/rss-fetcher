@@ -255,7 +255,7 @@ def fetches_per_minute(session: SessionType) -> float:
     update_feed() (below)
     """
     res: ScalarResult = session.scalars(
-        select(
+        Feed.select_where_active(
             func.sum(
                 1.0 /
                 func.coalesce(
@@ -271,8 +271,7 @@ def fetches_per_minute(session: SessionType) -> float:
                     )  # greatest
                 )  # func.coalesce
             )  # sum
-        )  # select
-        .where(*Feed._where_active())
+        )  # select_where_active
     )
     return res.one() or 0       # allow for empty db
 
