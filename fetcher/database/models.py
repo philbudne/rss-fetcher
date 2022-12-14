@@ -215,7 +215,7 @@ class FetchEvent(Base):
         return fe
 
 
-class Property(MyBase):
+class Property(Base):
     __tablename__ = 'properties'
 
     # see property.py for section, key values:

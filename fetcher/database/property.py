@@ -43,7 +43,7 @@ class Section:
         with Session() as session:
             items = session.query(Property.key, Property.value)\
                            .filter(Property.section == cls.SECTION_NAME)
-            return {item.key: item.value for item in items}
+            return {item.key: item.value for item in iter(items)}
 
 
 class PropertyObject:
