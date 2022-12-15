@@ -1,10 +1,10 @@
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.ext.asyncio.session import async_sessionmaker
 
-from fetcher.config import conf
+from fetcher.config import conf, fix_database_url
 
 async_engine = create_async_engine(
-    conf.SQLALCHEMY_DATABASE_URI,
+    fix_database_url(conf.SQLALCHEMY_DATABASE_URI),
     pool_size=conf.DB_POOL_SIZE,
     echo=conf.SQLALCHEMY_ECHO)
 
