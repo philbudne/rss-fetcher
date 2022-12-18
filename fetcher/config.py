@@ -378,8 +378,8 @@ class _Config:                  # only instantiated in this file
 
 conf = _Config()
 
-# TEMP (so same config works for psycopg2 and psycopg (v3))
-def fix_database_url(url: str) -> str:
+
+def fix_database_url(url: str) -> str:  # TEMP (work with psycopg2 config)
     scheme, path = url.split(':', 1)
     if scheme == 'postgresql':
         url = 'postgresql+psycopg:' + path
