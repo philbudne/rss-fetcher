@@ -4,7 +4,6 @@ from typing import Any, Dict
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 
-from fetcher.database import Session
 from fetcher.database.asyncio import AsyncSession
 from fetcher.database.models import Story
 
