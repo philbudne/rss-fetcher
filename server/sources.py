@@ -34,7 +34,7 @@ async def sources_feeds(sources_id: int) -> List[Dict]:
 @router.post("/{sources_id}/fetch-soon",
              dependencies=[Depends(auth.write_access)])
 @api_method
-def fetch_source_feeds_soon(sources_id: int) -> int:
+async def fetch_source_feeds_soon(sources_id: int) -> int:
     """
     Mark feeds associated with source to be fetched "soon".
     But to avoid clumping all of the feeds together, tries
@@ -63,12 +63,20 @@ def fetch_source_feeds_soon(sources_id: int) -> int:
     soon = utcnow + bucket * binterval
 
     # NOTE! isnot(True) may not work in DB's w/o bool type (eg MySQL)??
-    with Session() as session:
-        count = session.query(Feed)\
-                       .filter(Feed.sources_id == sources_id,
-                               Feed.queued.isnot(True))\
-                       .update({'next_fetch_attempt': soon})
-        session.commit()
+    # gives mypy error:
+    # Argument 2 to "where" of "DMLWhereBase" has incompatible type "ColumnOperators";
+    # expected "Union[ColumnElement[bool], _HasClauseElement, ExpressionElementRole[bool], Callable[[], ColumnElement[bool]], LambdaElement]"  [arg-type]
+
+    async with AsyncSession() as session:
+        # returns closed CursorResult:
+        result = await session.execute(
+            update(Feed)
+            .where(Feed.sources_id == sources_id,
+                   Feed.queued.isnot(True))  # type: ignore[arg-type]
+            .values(next_fetch_attempt=soon)
+        )
+        count = result.rowcount  # type: ignore[attr-defined]
+        await session.commit()
     return int(count)
 
 # maybe take limit as a query parameter _limit=N??
