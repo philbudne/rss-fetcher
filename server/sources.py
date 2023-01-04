@@ -85,20 +85,20 @@ async def fetch_source_feeds_soon(sources_id: int) -> int:
 @router.get("/{sources_id}/stories",
             dependencies=[Depends(auth.write_access)])
 @api_method
-def fetch_source_stories(sources_id: int) -> List[Dict[str, Any]]:
+async def fetch_source_stories(sources_id: int) -> List[Dict[str, Any]]:
     """
     return story details.
     see also feeds.fetch_feed_stories
     """
-    query = (select(STORY_COLUMNS)
+    query = (select(*STORY_COLUMNS)
              .where(Story.sources_id == sources_id)
              .order_by(STORY_ORDER)
              .limit(STORY_LIMIT))
-    with Session() as session:
-        return [s._asdict() for s in session.execute(query)]
+    async with AsyncSession() as session:
+        return [s._asdict() for s in await session.execute(query)]
 
 
-def _sources_stories_by_day(sources_id: int,
+async def _sources_stories_by_day(sources_id: int,
                             column: Column[Optional[dt.datetime]]) -> List[Dict[str, Any]]:
     """
     helper for fetch_source_stories_{fetched,published}_by_day.
@@ -113,30 +113,30 @@ def _sources_stories_by_day(sources_id: int,
              .where(Story.sources_id == sources_id)
              .group_by(day)
              .order_by(day))
-    with Session() as session:
+    async with AsyncSession() as session:
         return [row._asdict()
-                for row in session.execute(query)]
+                for row in await session.execute(query)]
 
 
 @router.get("/{sources_id}/stories/fetched-by-day",
             dependencies=[Depends(auth.write_access)])
 @api_method
-def fetch_source_stories_fetched_by_day(
+async def fetch_source_stories_fetched_by_day(
         sources_id: int) -> List[Dict[str, Any]]:
     """
     named like /api/stories/fetched-by-day;
     return count of stories by fetched_by day.
     """
-    return _sources_stories_by_day(sources_id, Story.fetched_at)
+    return await _sources_stories_by_day(sources_id, Story.fetched_at)
 
 
 @router.get("/{sources_id}/stories/published-by-day",
             dependencies=[Depends(auth.write_access)])
 @api_method
-def fetch_source_stories_published_by_day(
+async def fetch_source_stories_published_by_day(
         sources_id: int) -> List[Dict[str, Any]]:
     """
     named like /api/stories/fetched-by-day;
     return count of stories by fetched_by day.
     """
-    return _sources_stories_by_day(sources_id, Story.published_at)
+    return await _sources_stories_by_day(sources_id, Story.published_at)
