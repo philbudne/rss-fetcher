@@ -1,8 +1,10 @@
+import datetime as dt
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
+from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from fetcher.database.asyncio import AsyncSession
 from fetcher.database.models import Story
@@ -20,22 +22,36 @@ router = APIRouter(
 )
 
 
+async def _recent_volume(date_var: InstrumentedAttribute[dt.date],
+                         limit: int=DEFAULT_DAYS) -> List[Any]:
+    today = dt.datetime.utcnow().date()
+    earliest_date = today - dt.timedelta(days=limit)
+
+    async with AsyncSession() as session:
+        date = func.to_char(date_var, 'YYYY-MM-DD')
+        results = await session.execute(
+            select(date.label('date'),
+                   func.count(Story.id).label('count'))
+            .where(date_var <= today, date_var >= earliest_date)
+            .group_by(date)
+            .order_by(date.desc())
+        )
+        return [{'date': row.date,
+                 'count': row.count,
+                 'type': 'stories'}
+                for row in results]
+
+
 @router.get("/fetched-by-day", dependencies=[Depends(auth.read_access)])
 @api_method
-def stories_fetched_counts() -> TimeSeriesData:
-    return as_timeseries_data(
-        [Story.recent_published_volume(limit=DEFAULT_DAYS)],
-        ["stories"]
-    )
+async def stories_fetched_counts() -> TimeSeriesData:
+    return await _recent_volume(Story.fetched_at)
 
 
 @router.get("/published-by-day", dependencies=[Depends(auth.read_access)])
 @api_method
-def stories_published_counts() -> TimeSeriesData:
-    return as_timeseries_data(
-        [Story.recent_fetched_volume(limit=DEFAULT_DAYS)],
-        ["stories"]
-    )
+async def stories_published_counts() -> TimeSeriesData:
+    return await _recent_volume(Story.published_at)
 
 
 @router.get("/by-source", dependencies=[Depends(auth.read_access)])
