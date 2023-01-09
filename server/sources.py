@@ -31,6 +31,7 @@ async def sources_feeds(sources_id: int) -> List[Dict]:
         # was .as_dict_public, but fails w/ async?
         return [feed._asdict() for feed in feeds]
 
+
 @router.post("/{sources_id}/fetch-soon",
              dependencies=[Depends(auth.write_access)])
 @api_method
@@ -63,16 +64,12 @@ async def fetch_source_feeds_soon(sources_id: int) -> int:
     soon = utcnow + bucket * binterval
 
     # NOTE! isnot(True) may not work in DB's w/o bool type (eg MySQL)??
-    # gives mypy error:
-    # Argument 2 to "where" of "DMLWhereBase" has incompatible type "ColumnOperators";
-    # expected "Union[ColumnElement[bool], _HasClauseElement, ExpressionElementRole[bool], Callable[[], ColumnElement[bool]], LambdaElement]"  [arg-type]
-
     async with AsyncSession() as session:
         # returns closed CursorResult:
         result = await session.execute(
             update(Feed)
             .where(Feed.sources_id == sources_id,
-                   Feed.queued.isnot(True))  # type: ignore[arg-type]
+                   Feed.queued.op("is not")(True))
             .values(next_fetch_attempt=soon)
         )
         count = result.rowcount  # type: ignore[attr-defined]
