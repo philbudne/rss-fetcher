@@ -116,24 +116,6 @@ class Story(Base):
         return f"<Story id={self.id}>"
 
     @staticmethod
-    def recent_fetched_volume(limit: int) -> List[Any]:
-        today = dt.date.today()
-        earliest_date = today - dt.timedelta(days=limit)
-        query = "select fetched_at::date as day, count(1) as stories from stories " \
-                f"where fetched_at <= '{today}'::DATE AND fetched_at >= '{earliest_date}'::DATE " \
-                "group by 1 order by 1 DESC"
-        return _run_query(query)
-
-    @staticmethod
-    def recent_published_volume(limit: int) -> List[Any]:
-        today = dt.date.today()
-        earliest_date = today - dt.timedelta(days=limit)
-        query = "select published_at::date as day, count(1) as stories from stories " \
-                f"where published_at <= '{today}'::DATE AND published_at >= '{earliest_date}'::DATE " \
-                "group by 1 order by 1 DESC"
-        return _run_query(query)
-
-    @staticmethod
     def from_rss_entry(feed_id: int,  # type: ignore[no-any-unimported]
                        fetched_at: dt.datetime,
                        entry: FeedParserDict,
