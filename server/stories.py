@@ -23,7 +23,7 @@ router = APIRouter(
 
 
 async def _recent_volume(date_var: InstrumentedAttribute[dt.date],
-                         limit: int=DEFAULT_DAYS) -> List[Any]:
+                         limit: int = DEFAULT_DAYS) -> List[Any]:
     today = dt.datetime.utcnow().date()
     earliest_date = today - dt.timedelta(days=limit)
 
