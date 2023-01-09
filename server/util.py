@@ -16,7 +16,13 @@ class Status(Enum):
     ERROR = 'error'
 
 
-TimeSeriesData = List[Dict[str, object]]
+class TimeSeriesDatum(TypedDict):
+    date: dt.date
+    count: int
+    type: str
+
+
+TimeSeriesData = List[TimeSeriesDatum]
 
 logger = logging.getLogger(__name__)
 
@@ -109,24 +115,3 @@ def api_method(func: Any) -> Any:
             logger.exception(e)
             return _error_results(str(e), start_time, name)
     return wrapper
-
-
-def as_timeseries_data(counts: List[List[Dict]],
-                       names: List[str]) -> TimeSeriesData:
-    cleaned_data = [
-        {
-            r['day'].strftime("%Y-%m-%d"): r['stories']
-            for r in series
-        }
-        for series in counts
-    ]
-    dates = set(chain(*[series.keys() for series in cleaned_data]))
-    stories_by_day_data = []
-    for d in dates:  # need to make sure there is a pair of entries for each date
-        for idx, series in enumerate(cleaned_data):
-            stories_by_day_data.append(dict(
-                date=d,
-                type=names[idx],
-                count=series[d] if d in series else 0
-            ))
-    return stories_by_day_data

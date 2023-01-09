@@ -3,14 +3,14 @@ import logging
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import func, select
+from sqlalchemy import func, select, Date
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from fetcher.database.asyncio import AsyncSession
 from fetcher.database.models import Story
 
 import server.auth as auth
-from server.util import as_timeseries_data, api_method, TimeSeriesData
+from server.util import api_method, TimeSeriesData
 
 DEFAULT_DAYS = 30
 
@@ -23,23 +23,23 @@ router = APIRouter(
 
 
 async def _recent_volume(date_var: InstrumentedAttribute[dt.date],
-                         limit: int = DEFAULT_DAYS) -> List[Any]:
+                         limit: int = DEFAULT_DAYS) -> TimeSeriesData:
     today = dt.datetime.utcnow().date()
     earliest_date = today - dt.timedelta(days=limit)
 
     async with AsyncSession() as session:
-        date = func.to_char(date_var, 'YYYY-MM-DD')
+        date = date_var.cast(Date)
         results = await session.execute(
             select(date.label('date'),
-                   func.count(Story.id).label('count'))
+                   func.count(Story.id).label('n'))
             .where(date_var <= today, date_var >= earliest_date)
             .group_by(date)
             .order_by(date.desc())
         )
-        return [{'date': row.date,
-                 'count': row.count,
-                 'type': 'stories'}
-                for row in results]
+        return [
+            {'date': row.date, 'count': row.n, 'type': 'stories'}
+            for row in results
+        ]
 
 
 @router.get("/fetched-by-day", dependencies=[Depends(auth.read_access)])
