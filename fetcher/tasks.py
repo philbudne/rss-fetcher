@@ -267,7 +267,8 @@ def fetches_per_minute(session: SessionType) -> float:
                         func.coalesce(
                             Feed.update_minutes,
                             DEFAULT_INTERVAL_MINS),
-                        MINIMUM_INTERVAL_MINS
+                        case((Feed.http_304, MINIMUM_INTERVAL_MINS_304),
+                             else_=MINIMUM_INTERVAL_MINS)
                     )  # greatest
                 )  # func.coalesce
             )  # sum
