@@ -87,13 +87,12 @@ def queue_feeds(session: SessionType,
     return queued
 
 
-def find_and_queue_feeds(wq: queue.Queue, limit: int, timeout: int) -> int:
+def find_and_queue_feeds(wq: queue.Queue, limit: int, timeout: int,
+                         early: float = 0.0) -> int:
     """
     Find some active, undisabled, unqueued feeds
     that have not been checked, or are past due for a check (oldest first).
     """
-    # Maybe order by (id % 100) instead of id
-    #  to help break up clumps?
 
     with Session.begin() as session:  # type: ignore[attr-defined]
         # NOTE nulls_first is preferred in sqlalchemy 1.4
@@ -101,11 +100,11 @@ def find_and_queue_feeds(wq: queue.Queue, limit: int, timeout: int) -> int:
 
         # XXX lock rows for update?
         rows = \
-            _ready_ids(session)\
-            .order_by(Feed.next_fetch_attempt.asc().nullsfirst(),
-                      (Feed.id % 1001).desc())\
-            .limit(limit)\
-            .all()  # all rows
+            (_ready_ids(session, early)
+             .order_by(Feed.next_fetch_attempt.asc().nullsfirst(),
+                       (Feed.id % 1001).desc())
+             .limit(limit)
+             .all())  # all rows
         feed_ids = [row[0] for row in rows]
         if not feed_ids:
             return 0
@@ -132,17 +131,17 @@ def count_queued(session: SessionType) -> int:
                   .count()
 
 
-def _ready_filter(q: Query) -> Query:
+def _ready_filter(q: Query, early: float = 0.0) -> Query:
     return q.filter(Feed.queued.is_(False),
                     or_(Feed.next_fetch_attempt.is_(None),
-                        Feed.next_fetch_attempt <= utc()))
+                        Feed.next_fetch_attempt <= utc(early)))
 
 
-def _ready_ids(session: SessionType) -> Query:
+def _ready_ids(session: SessionType, early: float = 0.0) -> Query:
     """
     return base query for feed id's ready to be fetched
     """
-    return _ready_filter(_active_feed_ids(session))
+    return _ready_filter(_active_feed_ids(session), early)
 
 
 def _stray_catcher(task_timeout: int) -> int:
@@ -264,7 +263,9 @@ def loop(wq: queue.Queue, refill_period_mins: int,
                 limit = hi_water - qlen
                 if limit > max_feeds:
                     limit = max_feeds
-                added = find_and_queue_feeds(wq, hi_water - qlen, task_timeout)
+                # queue jobs from now-period/2 .. now+period/2
+                added = find_and_queue_feeds(wq, hi_water - qlen, task_timeout,
+                                             refill_period_mins * 60 / 2)
 
         # gauges "stick" at last value, so always set:
         stats.gauge('added', added)
