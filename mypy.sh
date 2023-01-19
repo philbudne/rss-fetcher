@@ -24,8 +24,9 @@ PYTHON=${PYTHON:-python3}
 
 # expected to be run in a venv w/ requirements.txt installed
 VENV=venv2
+echo using $VENV -- go back to venv when merged!!!
 if [ ! -d $VENV ]; then
-    echo creating venv
+    echo creating $VENV
     $PYTHON -mvenv $VENV || exit 1
 fi
 . ./$VENV/bin/activate
