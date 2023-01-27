@@ -5,7 +5,7 @@ sentry-sdk[fastapi]==1.10.*
 alembic==1.8.*
 gevent==22.10.*
 feedparser==6.0.10
-git+https://github.com/sqlalchemy/sqlalchemy@rel_2_0_0rc3#egg=sqlalchemy
+sqlalchemy==2.0.*
 psycopg>=3.1.*
 python-dateutil==2.8.*
 mediacloud-metadata>=0.7.6
