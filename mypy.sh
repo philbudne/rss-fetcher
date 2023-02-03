@@ -24,6 +24,8 @@ PYTHON=${PYTHON:-python3}
 
 # expected to be run in a venv w/ requirements.txt installed
 VENV=venv2
+CACHE='--cache-dir .mypy_cache_alchemy2'
+
 echo using $VENV -- go back to venv when merged!!!
 if [ ! -d $VENV ]; then
     echo creating $VENV
@@ -65,6 +67,7 @@ done
 #    touch $VENV/.mypy--install-types
 #fi
 
+ARGS="$CACHE"
 for X in scripts/[a-z]*.py; do
     ARGS="$ARGS -m$(echo $X | sed -e 's@/@.@' -e 's/\.py$//')"
 done
