@@ -3,8 +3,9 @@ from typing import Any, Dict, List, Optional
 import datetime as dt
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import cast, func, select, text, Column, Date
+from sqlalchemy import cast, func, select, text, update, Date
 import sqlalchemy.sql.functions as f
+from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from fetcher.database.asyncio import AsyncSession
 from fetcher.database.models import Feed, Story
@@ -95,8 +96,7 @@ async def fetch_source_stories(sources_id: int) -> List[Dict[str, Any]]:
         return [s._asdict() for s in await session.execute(query)]
 
 
-async def _sources_stories_by_day(sources_id: int,
-                            column: Column[Optional[dt.datetime]]) -> List[Dict[str, Any]]:
+async def _sources_stories_by_day(sources_id: int, column: InstrumentedAttribute) -> List[Dict[str, Any]]:
     """
     helper for fetch_source_stories_{fetched,published}_by_day.
 
@@ -105,8 +105,8 @@ async def _sources_stories_by_day(sources_id: int,
         type: "stories";
     could add them in query or by hand-made dicts in comprehension
     """
-    day = cast(column, Date).label('date')
-    query = (select([day, f.count().label('count')])
+    day = cast(column, Date).label('day')
+    query = (select(day, f.count().label('stories'))
              .where(Story.sources_id == sources_id)
              .group_by(day)
              .order_by(day))
