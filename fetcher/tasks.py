@@ -291,16 +291,6 @@ def _check_auto_adjust_longer(update: Update, feed: Feed,
     here to consider raising poll_minutues (too many dups)
     """
     # limit consideration of early polls, but late is ok.
-
-    # NOTE: This may be a positive feedback loop: if polls are late
-    # because "high water" is dropping, (and "ready" feeds backing
-    # up), allowing ALL late polls will increase the number of time
-    # poll_minutes is adjusted up, and increase the rate of decrease
-    # of the "high water" mark (and increase the number of late polls,
-    # which prohibits shortening poll periods.  Since the system is
-    # written to avoid early polls (except when triggered), perhaps
-    # this is an argument for primarily adjusting "up", and resetting
-    # periods to a minimal value??
     if delta_min < -AUTO_ADJUST_MAX_DELTA_MIN:
         logger.info(f"  Feed {feed.id} {-delta_min:.1f} min early")
         _auto_adjust_stat('early')
@@ -320,8 +310,6 @@ def _check_auto_adjust_longer(update: Update, feed: Feed,
     # 2. or if no stories ever seen, feed is younger than AASD
     # 3. or just fetched some stories (should trigger case 1).
     since = dt.datetime.utcnow() - last
-    logger.info(                # TEMP (lower to debug?)
-        f"  Feed {feed.id} next: {next_min} m; {since.days} d; {dup_pct:.1f}% dup; delta {delta_min:.1f} m")
     if since.days <= AUTO_ADJUST_SMALL_DAYS or dup_pct < 100:
         next_min += AUTO_ADJUST_SMALL_MINS
     else:
@@ -329,12 +317,9 @@ def _check_auto_adjust_longer(update: Update, feed: Feed,
 
     if next_min > MAXIMUM_INTERVAL_MINS:
         next_min = MAXIMUM_INTERVAL_MINS
-        logger.info(
-            f"  Feed {feed.id} poll_minutes clamped down to {next_min}")
         _auto_adjust_stat('max')
     elif feed.poll_minutes != next_min:
         _auto_adjust_stat('up')
-        logger.info(f"  Feed {feed.id} adjust poll_minutes up to {next_min}")
 
     return next_min
 
@@ -349,16 +334,22 @@ def _check_auto_adjust_shorter(update: Update, feed: Feed,
     # early is ok, but too late is not
     if delta_min > AUTO_ADJUST_MAX_DELTA_MIN:
         logger.info(f"  Feed {feed.id} {delta_min:.1f} min late")
+        # 2023-03-24: current scheduling favors short poll_minute
+        # feeds, and we could miss out on resetting poll_minutes on a
+        # feed which had been silent but came back to life with mostly
+        # or completely different stories, so this counter bears
+        # watching, and if excessive, consider removing the test (and
+        # counter), since it's better to poll too often than not often
+        # enough?
         _auto_adjust_stat('late')
         return next_min
 
     if next_min > DEFAULT_INTERVAL_MINS:
         # here to bring long poll intervals back to earth quickly
         next_min = DEFAULT_INTERVAL_MINS
-        how = ctr = 'reset'
+        ctr = 'reset'
     else:
         next_min -= AUTO_ADJUST_MINUTES
-        how = 'adjust'
         ctr = 'down'
 
     if feed.update_minutes:
@@ -371,18 +362,15 @@ def _check_auto_adjust_shorter(update: Update, feed: Feed,
 
     if next_min < minimum:
         next_min = minimum
-        logger.info(f"  Feed {feed.id} poll_minutes clamped up to {next_min}")
         _auto_adjust_stat('min')
     elif feed.poll_minutes != next_min:
-        logger.info(f"  Feed {feed.id} {how} poll_minutes down to {next_min}")
         _auto_adjust_stat(ctr)
 
     return next_min
 
 
 def _check_auto_adjust(update: Update, feed: Feed,
-                       next_min: int,
-                       prev_success: Optional[dt.datetime]) -> int:
+                       next_min: int) -> int:
     """
     Check if auto-adjust to poll_minutes needed.
     Returns (possibly updated) next_min (minutes to next fetch).
@@ -396,6 +384,7 @@ def _check_auto_adjust(update: Update, feed: Feed,
     # where second poll happened close to on time (about "next_min" ago),
     # and so is representative.
     # NOTE: start_delay is system lantency (only) for current poll.
+    prev_success = feed.last_fetch_success
     if prev_success is None:
         return next_min
 
@@ -426,19 +415,24 @@ def _check_auto_adjust(update: Update, feed: Feed,
         else:
             dup_pct = DupPct.NO_STORIES
 
+    old_next = next_min
     if dup_pct >= AUTO_ADJUST_MAX_DUPLICATE_PERCENT:
         # too many dups: make poll period longer
-        return _check_auto_adjust_longer(
+        next_minutes = _check_auto_adjust_longer(
             update, feed, next_min, dup_pct, delta_min)
-
-    if dup_pct < AUTO_ADJUST_MIN_DUPLICATE_PERCENT:
+    elif dup_pct < AUTO_ADJUST_MIN_DUPLICATE_PERCENT:
         # too few dups: make poll period shorter
-        return _check_auto_adjust_shorter(
+        next_minutes = _check_auto_adjust_shorter(
             update, feed, next_min, dup_pct, delta_min)
+    else:
+        # no need for adjustment
+        _auto_adjust_stat('noadj')
 
-    # no need for adjustment
+    logger.info(                # lower to debug??
+        f"  Feed {feed.id} {dup_pct:.1f}% dup; dt {delta_min:.1f} m"
+        f" %{old_next} => %{next_min}")
+
     return next_min
-
 
 def update_feed(session: SessionType,
                 feed_id: int,
@@ -509,7 +503,6 @@ def update_feed(session: SessionType,
                 setattr(f, key, value)
 
         f.last_fetch_attempt = start_time  # match fetch_event & stories
-        prev_success = f.last_fetch_success
         if status == Status.SUCC:
             f.last_fetch_success = start_time
         f.queued = False        # safe to requeue
@@ -563,8 +556,7 @@ def update_feed(session: SessionType,
         if next_minutes is not None:  # rescheduling?  back off to be
             # check if auto-adjust needed, before backoff, or
             # retry-after, and update poll_minutes.
-            next_minutes = _check_auto_adjust(
-                update, f, next_minutes, prev_success)
+            next_minutes = _check_auto_adjust(update, f, next_minutes)
 
             if f.poll_minutes != next_minutes:
                 f.poll_minutes = next_minutes
