@@ -5,11 +5,6 @@
 # see also mypy.ini
 # NOTE! psycopg2 install requires postgres client library libpq-dev
 
-# errors suppressed via "# type: ignore[....]"
-# * available stubs for sqlalchemy are not up to date:
-#	missing: Session.begin(), PendingRollbackError
-#       Solution is probably to use SQLAlchemy 2.0 when it comes out.
-#       (2.0.0b2 was released 2022-10-20)
 # * no type hints for feedparser: (could put our own .pyi files in stubs/)
 #       errors suppressed via mypy.ini and "# type: ignore[...]"
 
