@@ -147,7 +147,7 @@ class HeadHunter:
         self.stats.incr('hunter.refill')
 
         # start DB query
-        q = _where_active(select(ITEM_COLS))
+        q = _where_active(select(*ITEM_COLS))
 
         if feeds:
             q = q.where(Feed.id.in_(feeds),

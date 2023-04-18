@@ -241,42 +241,6 @@ def normalized_url_exists(session: SessionType,
                       .scalar() is True
 
 
-# used by scripts/queue_feeds.py, but moved here
-# because needs to be kept in sync with queuing policy
-# in update_feed().
-
-# NOTE! This returns an upper bound for polls
-# (without trying to account for backoff due to errors).
-def fetches_per_minute(session: SessionType) -> float:
-    """
-    Return average expected fetches per minute
-
-    NOTE!! This needs to be kept in sync with the policy in
-    update_feed() (below)
-    """
-    res: ScalarResult = session.scalars(
-        Feed.select_where_active(
-            func.sum(
-                1.0 /
-                func.coalesce(
-                    # poll_minutes overrides all else if non-NULL
-                    Feed.poll_minutes,
-                    # else never faster than minimum interval:
-                    greatest(
-                        # use DEFAULT_INTERVAL_MINS if update_minutes is NULL
-                        func.coalesce(
-                            Feed.update_minutes,
-                            DEFAULT_INTERVAL_MINS),
-                        case((Feed.http_304, MINIMUM_INTERVAL_MINS_304),
-                             else_=MINIMUM_INTERVAL_MINS)
-                    )  # greatest
-                )  # func.coalesce
-            )  # sum
-        )  # select_where_active
-    )
-    return res.one() or 0       # allow for empty db
-
-
 def _auto_adjust_stat(counter: str) -> None:
     """
     increment an auto-adjust status counter
