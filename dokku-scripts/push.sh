@@ -234,7 +234,7 @@ else
     dokku git:set $APP deploy-branch $DOKKU_GIT_BRANCH
 
     echo "pushing $BRANCH to $DOKKU_GIT_REMOTE $DOKKU_GIT_BRANCH (first push)"
-    if git push $DOKKU_GIT_REMOTE $DOKKU_GIT_BRANCH; then
+    if git push $DOKKU_GIT_REMOTE $BRANCH:$DOKKU_GIT_BRANCH; then
 	echo OK
     else
 	STATUS=$?
