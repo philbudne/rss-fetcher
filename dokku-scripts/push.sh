@@ -234,7 +234,7 @@ else
     dokku git:set $APP deploy-branch $DOKKU_GIT_BRANCH
 
     echo "pushing $BRANCH to $DOKKU_GIT_REMOTE $DOKKU_GIT_BRANCH (first push)"
-    if git push $DOKKU_GIT_REMOTE $BRANCH:$DOKKU_GIT_BRANCH; then
+    if git push $DOKKU_GIT_REMOTE $DOKKU_GIT_BRANCH; then
 	echo OK
     else
 	STATUS=$?
@@ -246,7 +246,8 @@ else
 
     echo "First push: pushing tag $TAG"
     # suppress "WARNING: deploy did not complete, you must push to main."
-    git push $DOKKU_GIT_REMOTE $TAG >/dev/null 2>&1
+    git push $DOKKU_GIT_REMOTE $TAG
+#>/dev/null 2>&1
 fi
 echo "================"
 
