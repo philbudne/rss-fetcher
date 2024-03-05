@@ -1,8 +1,8 @@
 import datetime as dt
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select, Date
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
@@ -80,3 +80,20 @@ async def stories_by_source() -> Dict[str, Any]:
             'days': (max - min) / SECONDS_PER_DAY,
             'sources': [count._asdict() for count in counts]
         }
+
+
+@router.get("/{story_id}", dependencies=[Depends(auth.read_access)])
+@api_method
+async def get_stories(
+        story_id: int,
+        _limit: Optional[int] = Query(default=1,
+                                      description="max rows to return",
+                                      ge=1)) -> List[Dict]:
+    async with AsyncSession() as session:
+        query = select(Story)\
+            .where(Story.id >= story_id)\
+            .order_by(Story.id.asc())\
+            .limit(_limit)
+
+        results = await session.scalars(query)
+        return [story.as_dict_public() for story in results]
