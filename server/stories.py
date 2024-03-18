@@ -7,7 +7,7 @@ from sqlalchemy import func, select, Date
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from fetcher.database.asyncio import AsyncSession
-from fetcher.database.models import Story
+from fetcher.database.models import Feed, Story
 
 import server.auth as auth
 from server.util import api_method, TimeSeriesData
@@ -88,12 +88,18 @@ async def get_stories(
         story_id: int,
         _limit: Optional[int] = Query(default=1,
                                       description="max rows to return",
-                                      ge=1)) -> List[Dict]:
+                                      ge=1),
+        _feed_url: Optional[bool] = Query(default=False,
+                                          description="include feed_url")) -> List[Dict]:
     async with AsyncSession() as session:
-        query = select(Story)\
-            .where(Story.id >= story_id)\
-            .order_by(Story.id.asc())\
-            .limit(_limit)
+        if _feed_url:
+            query = select(Story, Feed.url.label("feed_url")).where(Feed.id == Story.sources_id)
+        else:
+            query = select(Story)
+
+        query = query.where(Story.id >= story_id)\
+                     .order_by(Story.id.asc())\
+                     .limit(_limit)
 
         results = await session.scalars(query)
         return [story.as_dict_public() for story in results]
