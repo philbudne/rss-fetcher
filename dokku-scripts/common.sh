@@ -138,6 +138,11 @@ DOKKU_GIT_BRANCH=main
 # (web-search uses mcweb (app name))
 DOKKU_GIT_REMOTE=dokku_$INSTANCE
 
+# exit status of config.sh
+CONFIG_STATUS_CHANGED=0
+CONFIG_STATUS_ERROR=1
+CONFIG_STATUS_NOCHANGE=2
+
 INSTANCE_SH=$SCRIPT_DIR/instance.sh
 # name of dokku config var set by instance.sh, checked by push.sh:
 INSTANCE_HASH_VAR=INSTANCE_SH_GIT_HASH
