@@ -4,6 +4,14 @@
 # (can be used with any dokku app)
 # Phil Budne, October 2022
 
+INSTANCE=$1
+shift
+
+if [ "x$INSTANCE" = x ]; then
+    echo "$0 INSTANCE [ APP_TO_LINK ]" 1>&2
+    exit 1
+fi
+
 # optional:
 LINK_TO_APP=$1
 

@@ -10,18 +10,6 @@
 
 # Phil Budne, September 2022
 
-SCRIPT_DIR=$(dirname $0)
-COMMON_SH=$SCRIPT_DIR/common.sh
-if [ ! -f $COMMON_SH ]; then
-    echo cannot find $COMMON_SH 1>&2
-    exit 1
-fi
-. $COMMON_SH
-
-# needs root access for ssh key install to ~dokku
-# and install to /etc/cron.d
-check_root
-
 OP="$1"
 INSTANCE="$2"
 
@@ -33,18 +21,12 @@ chmod 600 $TMP
 case "$OP" in
 create|destroy)
     case "$INSTANCE" in
-    prod)
-	PREFIX=''
-	;;
-    staging)
-	PREFIX='staging-'
-	;;
+    prod|staging) ;;
     *)
         if ! id $INSTANCE >/dev/null 2>&1; then
             echo "$0: user $INSTANCE does not exist"
             exit 1
         fi
-	PREFIX="${INSTANCE}-"
 	;;
     esac
     ;;
@@ -57,8 +39,15 @@ if [ "x$ERR" != x ]; then
     exit 1
 fi
 
-# NOTE! used for filename in /etc/cron.d, so must contain only alphanum dots and dashes?
-APP=${PREFIX}rss-fetcher
+SCRIPT_DIR=$(dirname $0)
+COMMON_SH=$SCRIPT_DIR/common.sh
+if [ ! -f $COMMON_SH ]; then
+    echo cannot find $COMMON_SH 1>&2
+    exit 1
+fi
+. $COMMON_SH
+
+check_not_root
 
 # Service names:
 DATABASE_SVC=$APP
@@ -194,7 +183,7 @@ fi
 # check for, or create stats service, and link to our app
 
 echo checking for stats service...
-$SCRIPT_DIR/create-stats.sh $APP
+$SCRIPT_DIR/create-stats.sh $INSTANCE $APP
 echo ''
 
 ################ remove old process types
@@ -250,3 +239,5 @@ fi
 # XXX set only if needed?
 SCRIPT_HASH=$(instance_sh_file_git_hash)
 dokku config:set --no-restart $APP $INSTANCE_HASH_VAR=$SCRIPT_HASH
+
+# XXX is production, run crontab/ssh-key script under sudo?!!!!
