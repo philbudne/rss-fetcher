@@ -368,6 +368,7 @@ class _Config:                  # only instantiated in this file
     SAVE_RSS_FILES = conf_bool('SAVE_RSS_FILES', False)
 
     SENTRY_DSN = conf_optional('SENTRY_DSN')
+    SENTRY_ENV = conf_optional('SENTRY_ENV')
 
     # skip all pages that look like "home pages"
     SKIP_HOME_PAGES = conf_bool('SKIP_HOME_PAGES', False)
