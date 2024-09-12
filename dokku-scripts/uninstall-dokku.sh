@@ -4,12 +4,12 @@
 echo 'NOTE! NOT TESTED'
 
 SCRIPT_DIR=$(dirname $0)
-INSTALL_CONF=$SCRIPT_DIR/install-dokku.conf
-if [ ! -f $INSTALL_CONF ]; then
+COMMON_SH=$SCRIPT_DIR/common.sh
+if [ ! -f $COMMON_SH ]; then
     echo cannot find install.conf 1>&2
     exit 1
 fi
-. $INSTALL_CONF
+. $COMMON_SH
 
 check_root
 
