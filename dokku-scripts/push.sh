@@ -109,7 +109,7 @@ prod|staging)
 *)
     # check if origin (ie; user github fork) not up to date
     if [ "x$RSS_FETCHER_UNPUSHED" = x ]; then
-	if git diff --quiet origin/$BRANCH --; then
+	if git diff --quiet origin/$BRANCH -- 2>/dev/null; then
 	    echo "origin/$BRANCH up to date"
 	else
 	    # have an option to override this??
