@@ -10,11 +10,11 @@
 # Phil Budne, September 2022
 
 PUSH_FLAGS=
-# MCWEB_UNPUSHED inherited from environment
+# RSS_FETCHER_UNPUSHED inherited from environment
 for ARG in $*; do
     case "$ARG" in
     --force-push) PUSH_FLAGS=--force;; # force push code to dokku repo
-    --unpushed|-u) MCWEB_UNPUSHED=1;; # allow unpushed repo for development
+    --unpushed|-u) RSS_FETCHER_UNPUSHED=1;; # allow unpushed repo for development
     *) echo "$0: unknown argument $ARG"; exit 1;;
     esac
 done
@@ -108,7 +108,7 @@ prod|staging)
     ;;
 *)
     # check if origin (ie; user github fork) not up to date
-    if [ "x$UNPUSHED" = x ]; then
+    if [ "x$RSS_FETCHER_UNPUSHED" = x ]; then
 	if git diff --quiet origin/$BRANCH --; then
 	    echo "origin/$BRANCH up to date"
 	else
