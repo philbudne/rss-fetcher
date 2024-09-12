@@ -325,8 +325,10 @@ echo ''
 echo stopping processes...
 dokku ps:stop $APP
 
+set -x
+
 echo checking dokku config...
-$SCRIPT_DIR/config.sh $INSTANCE $CONFIG_FILE $CONFIG_EXTRAS $EXTRAS
+$SCRIPT_DIR/config.sh $INSTANCE $PRIVATE_CONF_FILE $CONFIG_EXTRAS $EXTRAS
 
 CONFIG_STATUS=$?
 case $CONFIG_STATUS in
