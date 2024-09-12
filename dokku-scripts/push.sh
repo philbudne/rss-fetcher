@@ -210,6 +210,14 @@ git tag $TAG
 # (ISTR seeing refs/tags/..../refs/tags/....)
 
 ################
+# takes any number of VAR=VALUE pairs
+# values with spaces probably lose!!!!!!
+EXTRAS=
+add_extras() {
+    for x in $*; do
+	EXTRAS="$EXTRAS -S $x"
+    done
+}
 
 add_extras DOKKU_WAIT_TO_RETIRE=30
 add_extras DOKKU_DEFAULT_CHECKS_WAIT=5
@@ -322,7 +330,7 @@ echo stopping processes...
 dokku ps:stop $APP
 
 echo checking dokku config...
-$SCRIPT_DIR/config.sh $INSTANCE $CONFIG_FILE $CONFIG_EXTRAS
+$SCRIPT_DIR/config.sh $INSTANCE $CONFIG_FILE $CONFIG_EXTRAS $EXTRAS
 
 CONFIG_STATUS=$?
 case $CONFIG_STATUS in
