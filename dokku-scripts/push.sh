@@ -319,10 +319,6 @@ prod|staging)
     ;;
 esac
 
-
-echo more config stuff here
-exit 1
-
 ################
 
 echo ''
@@ -355,6 +351,11 @@ $CONFIG_STATUS_NOCHANGE)
     echo $0: unknown CONFIG_STATUS $CONFIG_STATUS 1>&2
     exit 1
 esac
+
+
+echo TEMP EXIT
+exit
+
 
 ################
 
