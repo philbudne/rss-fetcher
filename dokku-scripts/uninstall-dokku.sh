@@ -6,7 +6,7 @@ echo 'NOTE! NOT TESTED'
 SCRIPT_DIR=$(dirname $0)
 COMMON_SH=$SCRIPT_DIR/common.sh
 if [ ! -f $COMMON_SH ]; then
-    echo cannot find install.conf 1>&2
+    echo cannot find $COMMON_SH 1>&2
     exit 1
 fi
 . $COMMON_SH
