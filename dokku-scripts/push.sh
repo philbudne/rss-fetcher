@@ -324,12 +324,6 @@ esac
 
 ################
 
-echo ''
-echo stopping processes...
-dokku ps:stop $APP
-
-set -x
-
 echo checking dokku config...
 $SCRIPT_DIR/config.sh $INSTANCE $PRIVATE_CONF_FILE $CONFIG_EXTRAS $EXTRAS
 
@@ -358,6 +352,10 @@ $CONFIG_STATUS_NOCHANGE)
 esac
 
 ################
+
+echo ''
+echo stopping processes...
+dokku ps:stop $APP
 
 echo ''
 CURR_GIT_BRANCH=$(dokku git:report $APP | awk '/Git deploy branch:/ { print $4 }')
