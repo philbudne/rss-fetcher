@@ -5,6 +5,7 @@ echo 'NOTE! NOT TESTED'
 
 SCRIPT_DIR=$(dirname $0)
 COMMON_SH=$SCRIPT_DIR/common.sh
+INSTANCE=ignored
 if [ ! -f $COMMON_SH ]; then
     echo cannot find $COMMON_SH 1>&2
     exit 1
