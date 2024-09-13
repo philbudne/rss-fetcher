@@ -1,20 +1,15 @@
 #!/bin/sh
 
-# XXX add config repo checkout, add_extras
-# XXX move DOKKU_GIT_REMOTE, APP settings to common.sh?
-# XXX add config tag (when code changed)
-# XXX delete config tag on error??????
-
 # Deploy code by pushing current branch to Dokkku app instance
 # (development, staging, or production, depending on branch name)
-# Phil Budne, September 2022
+# Phil Budne, September 2022, updated September 2024 (from web-search)!
 
 PUSH_FLAGS=
 # RSS_FETCHER_UNPUSHED inherited from environment
 for ARG in $*; do
     case "$ARG" in
     --force-push) PUSH_FLAGS=--force;; # force push code to dokku repo
-    --unpushed|-u) RSS_FETCHER_UNPUSHED=1;; # allow unpushed repo for development
+    --unpushed|-u) RSS_FETCHER_UNPUSHED=1;; # allow unpushed repo for devpt
     *) echo "$0: unknown argument $ARG"; exit 1;;
     esac
 done
@@ -68,8 +63,6 @@ ORIGIN="origin"
 
 # PUSH_TAG_TO: other remotes to push tag to
 PUSH_TAG_TO="$ORIGIN"
-
-# DOKKU_GIT_REMOTE: Name of git remote for Dokku instance
 
 git remote -v > $REMOTES
 
@@ -125,6 +118,7 @@ if ! dokku apps:exists "$APP" >/dev/null 2>&1; then
     exit 1
 fi
 
+# DOKKU_GIT_REMOTE: Name of git remote for Dokku instance
 TAB='	'
 if ! grep "^$DOKKU_GIT_REMOTE$TAB" $REMOTES >/dev/null; then
     echo git remote $DOKKU_GIT_REMOTE not found 1>&2
@@ -145,7 +139,7 @@ fi
 git fetch $DOKKU_GIT_REMOTE
 if git diff --quiet $BRANCH $DOKKU_GIT_REMOTE/$DOKKU_GIT_BRANCH --; then
     echo no code changes
-    export NO_CODE_CHANGE=1
+    export NO_CODE_CHANGES=1
 fi
 
 # XXX log all commits not in Dokku repo??
@@ -161,6 +155,7 @@ case "$CONFIRM" in
 *) echo '[cancelled]'; exit;;
 esac
 
+DATE_TIME=$(date -u '+%F-%H-%M-%S')
 if [ "x$BRANCH" = xprod ]; then
     # XXX check if pushed to github/mediacloud/PROJECT prod branch??
     # (for staging too?)
@@ -168,10 +163,17 @@ if [ "x$BRANCH" = xprod ]; then
     TAG=v$(grep '^VERSION' fetcher/__init__.py | sed -e 's/^.*= *//' -e 's/"//g' -e "s/'//g" -e 's/#.*//' -e 's/ *$//')
     echo "Found version number: $TAG"
 
-    # NOTE! fgrep -x (-F -x) to match literal whole line (w/o regexps)
-    if git tag | grep -F -x "$TAG" >/dev/null; then
-	echo "found local tag $TAG: update fetcher.VERSION?"
-	exit 1
+    CONFIG_TAG=${TAG}
+    if [ "x$NO_CODE_CHANGES" = x ]; then
+	# NOTE! fgrep -x (-F -x) to match literal whole line (w/o regexps)
+	if git tag | grep -F -x "$TAG" >/dev/null; then
+	    echo "found local tag $TAG: update mcweb.settings.VERSION?"
+	    exit 1
+	fi
+    else
+	# here with no code change, $TAG should already exist on code & config
+	# new tag for config:
+	CONFIG_TAG=${CONFIG_TAG}-${DATE_TIME}
     fi
 
     # https://stackoverflow.com/questions/5549479/git-check-if-commit-xyz-in-remote-repo
@@ -190,7 +192,8 @@ if [ "x$BRANCH" = xprod ]; then
     fi
 else
     # used to use APP instead of INSTANCE
-    TAG=$(date -u '+%F-%H-%M-%S')-$HOSTNAME-$INSTANCE
+    TAG=$DATE_TIME-$HOSTNAME-$INSTANCE
+    CONFIG_TAG=${TAG}		# only used for staging
 fi
 echo ''
 echo adding local tag $TAG
@@ -354,11 +357,6 @@ $CONFIG_STATUS_NOCHANGE)
     exit 1
 esac
 
-
-echo TEMP EXIT
-exit
-
-
 ################
 
 echo ''
@@ -368,6 +366,7 @@ if [ "x$CURR_GIT_BRANCH" != "x$DOKKU_GIT_BRANCH" ]; then
     dokku git:set $APP deploy-branch $DOKKU_GIT_BRANCH
 fi
 
+# output on multiple lines? show remote URL??
 echo "pushing branch $BRANCH to $DOKKU_GIT_REMOTE $DOKKU_GIT_BRANCH"
 if git push $PUSH_FLAGS $DOKKU_GIT_REMOTE $BRANCH:$DOKKU_GIT_BRANCH; then
     echo OK
@@ -391,10 +390,16 @@ for REMOTE in $PUSH_TAG_TO; do
     echo "================"
 done
 
+# for prod/staging: tag config repo and push tag
+if [ -n "$PRIVATE_CONF_REPO" -a -d "$PRIVATE_CONF_REPO" ]; then
+    tag_conf_repo
+fi
+
 # start fetcher/worker processes (only needed first time)
 echo scaling up
 PROCS="fetcher=1 web=1"
 dokku ps:scale --skip-deploy $APP $PROCS
+# never needed?
 dokku ps:start $APP
 
-echo "$(date '+%F %T') $APP $REMOTE $TAG" >> push.log
+echo "$DATE_TIME $APP $REMOTE $TAG" >> push.log
