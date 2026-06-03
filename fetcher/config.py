@@ -374,6 +374,8 @@ class _Config:                  # only instantiated in this file
     # ms per story (no conf_float function):
     SAVE_STORY_MS = conf_int('SAVE_STORY_MS', 12)
 
+    # days between updates to stories seen_at column
+    SEEN_UPDATE_DAYS = conf_int('SEEN_UPDATE_DAYS', 7)
     SENTRY_DSN = conf_optional('SENTRY_DSN')
     SENTRY_ENV = conf_optional('SENTRY_ENV')
 

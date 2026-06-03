@@ -177,6 +177,7 @@ NORMALIZED_TITLE_DAYS = conf.NORMALIZED_TITLE_DAYS
 RSS_FETCH_TIMEOUT_SECS = conf.RSS_FETCH_TIMEOUT_SECS
 SAVE_RSS_FILES = conf.SAVE_RSS_FILES
 SAVE_PARSE_ERRORS = conf.SAVE_PARSE_ERRORS
+SEEN_UPDATE_TIMEDELTA = dt.timedelta(days=conf.SEEN_UPDATE_DAYS)
 SAVE_STORY_MAX_SEC = conf.SAVE_STORY_MAX_SEC
 SAVE_STORY_MIN_SEC = conf.SAVE_STORY_MIN_SEC
 SAVE_STORY_SEC = conf.SAVE_STORY_MS / 1000
@@ -258,17 +259,25 @@ def update_rowcount(ret: Result[Any]) -> int:
 
 
 def normalized_url_exists(session: SessionType,
-                          normalized_url: Optional[str],
+                          normalized_url: str,
                           start_time: dt.datetime) -> bool:
-    if normalized_url is None:
-        return False
     with session.begin():
-        # Find matching row and update seen_at to keep it from expiring.
-        # NOTE! does not care about which feed created it!
-        ret = session.execute(update(Story)
-                              .where(Story.normalized_url == normalized_url)
-                              .values(seen_at=start_time))
-        return update_rowcount(ret) > 0
+        seen = session.scalars(
+            select(Story.seen_at)
+            .where(Story.normalized_url == normalized_url)
+            .with_for_update()
+        ).one_or_none()
+        if seen is None:
+            return False        # not found
+
+        # avoid constant SSD writes:
+        age = start_time - seen
+        if age >= SEEN_UPDATE_TIMEDELTA:
+            # update seen_at to keep it from expiring:
+            session.execute(update(Story)
+                            .where(Story.normalized_url == normalized_url)
+                            .values(seen_at=start_time))
+        return True
 
 
 def _auto_adjust_stat(counter: str) -> None:
@@ -978,11 +987,12 @@ def parse(url: str, response: requests.Response) -> ParsedFeed:
         updateperiod=None)
 
 
-def make_story(feed_id: int,
+def make_story(feed: dict[str, Any],
                fetched_at: dt.datetime,
                entry: ParsedEntry) -> Story:
     s = Story()
-    s.feed_id = feed_id
+    s.feed_id = feed['id']
+    s.sources_id = feed['sources_id']
     s.url = url = entry.url
     s.normalized_url = urls.normalize_url(url)
     s.domain = urls.canonical_domain(url)
@@ -1043,10 +1053,10 @@ def fetch_and_process_feed(
         #     Marx Brothers' "Night at the Opera" (1935)
 
         if (not f.active
-            or not f.system_enabled
-            or not f.queued
-            # OLD: queue_feeds w/ command line used to clear next_fetch_attempt
-                    # or f.next_fetch_attempt and f.next_fetch_attempt > start
+                or not f.system_enabled
+                or not f.queued
+                # OLD: queue_feeds w/ command line used to clear next_fetch_attempt
+                # or f.next_fetch_attempt and f.next_fetch_attempt > start
             ):
             logger.info(
                 f"insane: act {f.active} ena {f.system_enabled} qd {f.queued} nxt {f.next_fetch_attempt} last {f.last_fetch_attempt}")
@@ -1306,7 +1316,7 @@ def save_stories_from_feed(session: SessionType,
 
                 # pulled up into try to handle normalize_url and
                 # canonical_domain errors:
-                s = make_story(feed['id'], start, entry)
+                s = make_story(feed, start, entry)
             except (ValueError, TypeError):
                 logger.debug(f" * bad URL: {link}")
                 stories_incr('bad')
@@ -1320,7 +1330,13 @@ def save_stories_from_feed(session: SessionType,
                 stories_incr('nonews')
                 skipped_count += 1
                 continue
-            s.sources_id = feed['sources_id']
+
+            if not s.normalized_url:
+                logger.debug(f" * skip empty normalized_url")
+                stories_incr('nonurl')
+                skipped_count += 1
+                continue
+
             # only save if url is unique, and title is unique recently
             if not normalized_url_exists(session, s.normalized_url, start):
                 if not normalized_title_exists(
