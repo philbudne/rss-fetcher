@@ -10,11 +10,11 @@ dburl.sh, clone-db.sh plus vars.py
 import sys
 
 from mc_deploy.base import CmdArgs, ParserArgs
-from mc_deploy.dokku import DokkuDBDeploy
+from mc_deploy.dokku import DokkuDBMixin, DokkuDeploy
 from mc_deploy.pyproject import PyProjectMixin
 
 
-class RssFetcherDeploy(PyProjectMixin, DokkuDBDeploy):
+class RssFetcherDeploy(PyProjectMixin, DokkuDBMixin, DokkuDeploy):
     # Much better to increase WEB_CONCURRENCY setting (gunicorn workers)
     # than number of web containers (parallel containers don't cooperate,
     # or report stats properly)!
@@ -48,8 +48,7 @@ class RssFetcherDeploy(PyProjectMixin, DokkuDBDeploy):
         if self.is_prod_staging():
             # currently only prod.sh, no staging overrides
             files = ["prod.sh"]
-            self.settings_load_private_files(f"{self.PROJECT_REPO}-config",
-                                             files)
+            self.settings_load_private_files(self.PROJECT_REPO, files)
         else:
             # load template config file for external development
             # (avoid multiple places with default dev settings):
